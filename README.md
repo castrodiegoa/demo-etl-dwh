@@ -8,13 +8,13 @@
 
     - En **Linux/MacOS**:
         ```bash
-        python -m venv venv
+        python -m venv .venv
         source venv/bin/activate
         ```
 
     - En **Windows**:
         ```bash
-        python -m venv venv
+        python -m venv .venv
         .\venv\Scripts\activate
         ```
 
