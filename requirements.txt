@@ -1,0 +1,5 @@
+pandas
+sqlalchemy
+oracledb
+psycopg2-binary
+python-dotenv
