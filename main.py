@@ -1,6 +1,6 @@
 from extract.oracle_extract import (
     extract_enc_vent,
-    extract_det_vent,
+    extract_det_vent_in_chunks,
     extract_art_vent,
     extract_pos_clte,
     extract_mae_bode,
@@ -18,7 +18,6 @@ from load.postgres_load import load_to_postgres
 def main():
     # -------- EXTRACT --------
     enc_vent_df = extract_enc_vent()
-    det_vent_df = extract_det_vent()
     art_vent_df = extract_art_vent()
     pos_clte_df = extract_pos_clte()
     mae_bode_df = extract_mae_bode()
@@ -29,22 +28,43 @@ def main():
     dim_bodega = build_dim_bodega(mae_bode_df)
     dim_producto = build_dim_producto(art_vent_df)
 
-    # -------- TRANSFORM - Hecho --------
-    fact_ventas = build_fact_ventas(
-        enc_vent_df=enc_vent_df,
-        det_vent_df=det_vent_df,
-        dim_tiempo=dim_tiempo,
-        dim_cliente=dim_cliente,
-        dim_bodega=dim_bodega,
-        dim_producto=dim_producto,
-    )
-
-    # -------- LOAD --------
+    # -------- LOAD - Dimensiones --------
     load_to_postgres(dim_tiempo, "dim_tiempo")
     load_to_postgres(dim_cliente, "dim_cliente")
     load_to_postgres(dim_bodega, "dim_bodega")
     load_to_postgres(dim_producto, "dim_producto")
-    load_to_postgres(fact_ventas, "fact_ventas")
+
+    # -------- TRANSFORM - Hecho --------
+    for chunk in extract_det_vent_in_chunks(chunksize=10000):
+        # Es recomendable asegurarse que los nombres de columna sean consistentes.
+        # Por ejemplo, forzamos a minúsculas (o mayúsculas, según prefieras) en el chunk.
+        chunk.columns = chunk.columns.str.lower()
+        enc_vent_df.columns = enc_vent_df.columns.str.lower()
+        # También se puede normalizar en build_fact_ventas, pero aquí nos aseguramos.
+
+        # Procesa el chunk para construir la parte de la tabla de hechos.
+        fact_chunk = build_fact_ventas(
+            enc_vent_df=enc_vent_df,
+            det_vent_df=chunk,
+            dim_tiempo=dim_tiempo,
+            dim_cliente=dim_cliente,
+            dim_bodega=dim_bodega,
+            dim_producto=dim_producto,
+        )
+
+        # Cargar este chunk a PostgreSQL en modo "append"
+        from load.postgres_load import get_postgres_engine
+
+        engine = get_postgres_engine()
+        # Usamos if_exists="append" para no sobreescribir los registros ya cargados.
+        fact_chunk.to_sql("fact_ventas", engine, if_exists="append", index=False)
+        print(f"Cargado chunk de {len(fact_chunk)} registros en fact_ventas")
+
+        # Liberar memoria para el chunk procesado
+        del chunk, fact_chunk
+        import gc
+
+        gc.collect()
 
     print("ETL finalizado con éxito.")
 

@@ -26,7 +26,7 @@ def extract_enc_vent():
     return df
 
 
-def extract_det_vent():
+def extract_det_vent_in_chunks(chunksize=10000):
     engine = get_oracle_engine()
     query = """
     SELECT 
@@ -39,8 +39,7 @@ def extract_det_vent():
         IVA_PORC        AS IVA_PORC
     FROM DEMO_DWH.DET_VENT
     """
-    df = pd.read_sql(query, con=engine)
-    return df
+    return pd.read_sql(query, con=engine, chunksize=chunksize)
 
 
 def extract_art_vent():
