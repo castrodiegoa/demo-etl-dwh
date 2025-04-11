@@ -1,18 +1,18 @@
-from extract.oracle_extract import (
+from src.extract.oracle_extract import (
     extract_enc_vent,
     extract_det_vent_in_chunks,
     extract_art_vent,
     extract_pos_clte,
     extract_mae_bode,
 )
-from transform.transform_data import (
+from src.transform.transform_data import (
     build_dim_tiempo,
     build_dim_cliente,
     build_dim_bodega,
     build_dim_producto,
     build_fact_ventas,
 )
-from load.postgres_load import load_to_postgres
+from src.load.postgres_load import load_to_postgres
 
 
 def main():
@@ -34,13 +34,21 @@ def main():
     load_to_postgres(dim_bodega, "dim_bodega")
     load_to_postgres(dim_producto, "dim_producto")
 
-    # -------- TRANSFORM - Hecho --------
+    # -------- TRANSFORM and LOAD - Hecho --------
     for chunk in extract_det_vent_in_chunks(chunksize=10000):
-        # Es recomendable asegurarse que los nombres de columna sean consistentes.
-        # Por ejemplo, forzamos a minúsculas (o mayúsculas, según prefieras) en el chunk.
-        chunk.columns = chunk.columns.str.lower()
-        enc_vent_df.columns = enc_vent_df.columns.str.lower()
-        # También se puede normalizar en build_fact_ventas, pero aquí nos aseguramos.
+
+        enc_vent_df = enc_vent_df.drop_duplicates(
+            subset=["codigo_bodega", "codigo_caja", "codigo_evento", "numero_ticket"]
+        )
+        chunk = chunk.drop_duplicates(
+            subset=[
+                "codigo_bodega",
+                "codigo_caja",
+                "codigo_evento",
+                "numero_ticket",
+                "numero_consecutivo",
+            ]
+        )
 
         # Procesa el chunk para construir la parte de la tabla de hechos.
         fact_chunk = build_fact_ventas(
@@ -53,7 +61,7 @@ def main():
         )
 
         # Cargar este chunk a PostgreSQL en modo "append"
-        from load.postgres_load import get_postgres_engine
+        from src.load.postgres_load import get_postgres_engine
 
         engine = get_postgres_engine()
         # Usamos if_exists="append" para no sobreescribir los registros ya cargados.

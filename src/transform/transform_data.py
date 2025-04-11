@@ -1,5 +1,4 @@
 import pandas as pd
-import numpy as np
 
 
 # ----------------------------------------------------------------
@@ -63,7 +62,7 @@ def build_dim_cliente(pos_clte_df):
     """
     Crea la dimensión de cliente con surrogate key (cliente_id).
     """
-    dim_cliente = pos_clte_df.copy().drop_duplicates(subset=["cod_cliente"])
+    dim_cliente = pos_clte_df.copy().drop_duplicates(subset=["codigo_cliente"])
 
     # Generamos surrogate key
     dim_cliente = dim_cliente.reset_index(drop=True)
@@ -73,7 +72,7 @@ def build_dim_cliente(pos_clte_df):
     dim_cliente = dim_cliente[
         [
             "cliente_id",
-            "cod_cliente",
+            "codigo_cliente",
             "nombre_cliente",
             "apellido_cliente",
             "direccion_cliente",
@@ -83,13 +82,6 @@ def build_dim_cliente(pos_clte_df):
             "sexo_cliente",
         ]
     ]
-
-    # Renombrar para ajustarse al modelo final
-    dim_cliente = dim_cliente.rename(
-        columns={
-            "cod_cliente": "codigo_cliente",
-        }
-    )
 
     return dim_cliente
 
@@ -101,21 +93,15 @@ def build_dim_bodega(mae_bode_df):
     """
     Crea la dimensión de bodega con surrogate key (bodega_id).
     """
-    dim_bodega = mae_bode_df.copy().drop_duplicates(subset=["cod_bodega"])
+    dim_bodega = mae_bode_df.copy().drop_duplicates(subset=["codigo_bodega"])
 
     dim_bodega = dim_bodega.reset_index(drop=True)
     dim_bodega["bodega_id"] = dim_bodega.index + 1
 
     # Reordenar y renombrar
     dim_bodega = dim_bodega[
-        ["bodega_id", "cod_bodega", "descripcion_bodega", "direccion_bodega"]
+        ["bodega_id", "codigo_bodega", "descripcion_bodega", "direccion_bodega"]
     ]
-
-    dim_bodega = dim_bodega.rename(
-        columns={
-            "cod_bodega": "codigo_bodega",
-        }
-    )
 
     return dim_bodega
 
@@ -125,27 +111,23 @@ def build_dim_bodega(mae_bode_df):
 # ----------------------------------------------------------------
 def build_dim_producto(art_vent_df):
     # Ordenamos por el código del producto para mantener consistencia
-    dim_producto = art_vent_df.copy().drop_duplicates(subset=["cod_producto"])
+    dim_producto = art_vent_df.copy().drop_duplicates(subset=["codigo_producto"])
 
     dim_producto = dim_producto.reset_index(drop=True)
     dim_producto["producto_id"] = dim_producto.index + 1
 
-    # Reordenamos y renombramos las columnas para adecuarlas al modelo DWH
+    # Reordenamos las columnas para adecuarlas al modelo DWH
     dim_producto = dim_producto[
         [
             "producto_id",
-            "cod_producto",
+            "codigo_producto",
             "descripcion_producto",
             "tipo_producto",
             "estado_producto",
+            "referencia_producto",
+            "valor_curva",
         ]
     ]
-
-    dim_producto = dim_producto.rename(
-        columns={
-            "cod_producto": "codigo_producto",
-        }
-    )
 
     return dim_producto
 
@@ -168,8 +150,12 @@ def build_fact_ventas(
     - fact_ventas: tabla de hechos con métricas y claves foráneas hacia dimensiones
     """
 
-    # 1. Unir encabezado con detalle por NUMERO_TICKET
-    merged = det_vent_df.merge(enc_vent_df, on="numero_ticket", how="inner")
+    # 1. Unir encabezado con detalle
+    merged = det_vent_df.merge(
+        enc_vent_df,
+        on=["codigo_bodega", "codigo_caja", "codigo_evento", "numero_ticket"],
+        how="inner",
+    )
 
     # 2. Obtener tiempo_id desde FECHA_OPERACION
     merged = merged.merge(
@@ -183,7 +169,7 @@ def build_fact_ventas(
     merged = merged.merge(
         dim_cliente[["cliente_id", "codigo_cliente"]],
         how="left",
-        left_on="cod_cliente",
+        left_on="codigo_cliente",
         right_on="codigo_cliente",
     )
 
@@ -191,7 +177,7 @@ def build_fact_ventas(
     merged = merged.merge(
         dim_bodega[["bodega_id", "codigo_bodega"]],
         how="left",
-        left_on="cod_bodega",
+        left_on="codigo_cliente",
         right_on="codigo_bodega",
     )
 
@@ -199,7 +185,7 @@ def build_fact_ventas(
     merged = merged.merge(
         dim_producto[["producto_id", "codigo_producto"]],
         how="left",
-        left_on="cod_producto",
+        left_on="codigo_producto",
         right_on="codigo_producto",
     )
 
@@ -220,12 +206,8 @@ def build_fact_ventas(
             "valor_unitario",
             "valor_descuento",
             "valor_venta",
-            "iva_porc",
+            "iva_porcentaje",
         ]
-    ].rename(
-        columns={
-            "iva_porc": "iva",
-        }
-    )
+    ]
 
     return fact_ventas
