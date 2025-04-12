@@ -98,7 +98,7 @@ def build_dim_bodega(mae_bode_df):
     dim_bodega = dim_bodega.reset_index(drop=True)
     dim_bodega["bodega_id"] = dim_bodega.index + 1
 
-    # Reordenar y renombrar
+    # Reordenar
     dim_bodega = dim_bodega[
         ["bodega_id", "codigo_bodega", "descripcion_bodega", "direccion_bodega"]
     ]
@@ -177,7 +177,7 @@ def build_fact_ventas(
     merged = merged.merge(
         dim_bodega[["bodega_id", "codigo_bodega"]],
         how="left",
-        left_on="codigo_cliente",
+        left_on="codigo_bodega",
         right_on="codigo_bodega",
     )
 

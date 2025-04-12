@@ -1,6 +1,6 @@
 import pandas as pd
 from sqlalchemy import create_engine
-from config.config import ORACLE_CONFIG
+from src.config.config import ORACLE_CONFIG
 
 
 def get_oracle_engine():

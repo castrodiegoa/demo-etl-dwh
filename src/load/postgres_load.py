@@ -1,5 +1,5 @@
 from sqlalchemy import create_engine
-from config.config import POSTGRES_CONFIG
+from src.config.config import POSTGRES_CONFIG
 import pandas as pd
 
 
