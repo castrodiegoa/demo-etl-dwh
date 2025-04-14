@@ -75,10 +75,6 @@ def build_dim_cliente(pos_clte_df):
             "codigo_cliente",
             "nombre_cliente",
             "apellido_cliente",
-            "direccion_cliente",
-            "telefono_cliente",
-            "fecha_nacimiento_cliente",
-            "email_cliente",
             "sexo_cliente",
         ]
     ]
@@ -122,8 +118,6 @@ def build_dim_producto(art_vent_df):
             "producto_id",
             "codigo_producto",
             "descripcion_producto",
-            "tipo_producto",
-            "estado_producto",
             "referencia_producto",
             "valor_curva",
         ]
@@ -135,66 +129,57 @@ def build_dim_producto(art_vent_df):
 # ----------------------------------------------------------------
 #  FACT VENTAS
 # ----------------------------------------------------------------
-def build_fact_ventas(
-    enc_vent_df, det_vent_df, dim_tiempo, dim_cliente, dim_bodega, dim_producto
-):
+def build_fact_ventas(fact_base_df, dim_tiempo, dim_cliente, dim_bodega, dim_producto):
     """
-    Construye la tabla de hechos 'fact_ventas' usando claves surrogate de las dimensiones.
+    Construye la tabla de hechos 'fact_ventas' desde un DataFrame ya unido con enc_vent, det_vent y art_vent.
 
     Entradas:
-    - enc_vent_df: encabezados de ventas (fecha, cliente, bodega, ticket)
-    - det_vent_df: detalle de ventas (producto, cantidad, valores)
-    - dim_tiempo, dim_cliente, dim_bodega, dim_producto: dimensiones ya transformadas
+    - fact_base_df: resultado de extract_fact_ventas_base (ya incluye datos necesarios de las 3 tablas).
+    - dimensiones: DataFrames de tiempo, cliente, bodega, producto.
 
     Salida:
-    - fact_ventas: tabla de hechos con métricas y claves foráneas hacia dimensiones
+    - fact_ventas: tabla de hechos final con claves foráneas y métricas.
     """
 
-    # 1. Unir encabezado con detalle
-    merged = det_vent_df.merge(
-        enc_vent_df,
-        on=["codigo_bodega", "codigo_caja", "codigo_evento", "numero_ticket"],
-        how="inner",
-    )
+    # Aseguramos nombres consistentes
+    fact_base_df.columns = fact_base_df.columns.str.lower()
 
-    # 2. Obtener tiempo_id desde FECHA_OPERACION
-    merged = merged.merge(
+    # 1. Merge con dimensión tiempo
+    fact_df = fact_base_df.merge(
         dim_tiempo[["tiempo_id", "fecha_completa"]],
         how="left",
         left_on="fecha_operacion",
         right_on="fecha_completa",
     )
 
-    # 3. Obtener cliente_id
-    merged = merged.merge(
+    # 2. Merge con dimensión cliente
+    fact_df = fact_df.merge(
         dim_cliente[["cliente_id", "codigo_cliente"]],
         how="left",
-        left_on="codigo_cliente",
-        right_on="codigo_cliente",
+        on="codigo_cliente",
     )
 
-    # 4. Obtener bodega_id
-    merged = merged.merge(
+    # 3. Merge con dimensión bodega
+    fact_df = fact_df.merge(
         dim_bodega[["bodega_id", "codigo_bodega"]],
         how="left",
         left_on="codigo_bodega",
         right_on="codigo_bodega",
     )
 
-    # 5. Obtener producto_id
-    merged = merged.merge(
+    # 4. Merge con dimensión producto
+    fact_df = fact_df.merge(
         dim_producto[["producto_id", "codigo_producto"]],
         how="left",
-        left_on="codigo_producto",
-        right_on="codigo_producto",
+        on="codigo_producto",
     )
 
-    # 6. Generar clave surrogate para fact_ventas
-    merged = merged.reset_index(drop=True)
-    merged["venta_id"] = merged.index + 1
+    # 5. Generar surrogate key (venta_id)
+    fact_df = fact_df.reset_index(drop=True)
+    fact_df["venta_id"] = fact_df.index + 1
 
-    # 7. Seleccionar columnas finales
-    fact_ventas = merged[
+    # 6. Seleccionar columnas finales
+    fact_ventas = fact_df[
         [
             "venta_id",
             "tiempo_id",
@@ -202,6 +187,9 @@ def build_fact_ventas(
             "bodega_id",
             "producto_id",
             "numero_ticket",
+            "codigo_caja",
+            "codigo_evento",
+            "numero_consecutivo",
             "cantidad",
             "valor_unitario",
             "valor_descuento",
