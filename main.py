@@ -11,51 +11,40 @@ from src.transform.transform_data import (
     build_dim_producto,
     build_fact_ventas,
 )
-from src.load.postgres_load import load_to_postgres, get_postgres_engine
+from src.load.postgres_load import load_to_postgres
 
 
 def main():
     # -------- EXTRACT --------
-    fact_base_df = extract_fact_ventas_base()
+    fact_ventas_base_df = extract_fact_ventas_base()
     art_vent_df = extract_art_vent()
     pos_clte_df = extract_pos_clte()
     mae_bode_df = extract_mae_bode()
 
-    # -------- DEDUPLICACIÓN DE BASE --------
-    fact_base_df = fact_base_df.drop_duplicates(
-        subset=[
-            "codigo_bodega",
-            "codigo_caja",
-            "codigo_evento",
-            "numero_ticket",
-            "numero_consecutivo",
-        ]
-    )
-
     # -------- TRANSFORM - Dimensiones --------
-    dim_tiempo = build_dim_tiempo(fact_base_df)
-    dim_cliente = build_dim_cliente(pos_clte_df)
-    dim_bodega = build_dim_bodega(mae_bode_df)
-    dim_producto = build_dim_producto(art_vent_df)
+    dim_tiempo_df = build_dim_tiempo(fact_ventas_base_df)
+    dim_cliente_df = build_dim_cliente(pos_clte_df)
+    dim_bodega_df = build_dim_bodega(mae_bode_df)
+    dim_producto_df = build_dim_producto(art_vent_df)
 
     # -------- LOAD - Dimensiones --------
-    load_to_postgres(dim_tiempo, "dim_tiempo")
-    load_to_postgres(dim_cliente, "dim_cliente")
-    load_to_postgres(dim_bodega, "dim_bodega")
-    load_to_postgres(dim_producto, "dim_producto")
+    load_to_postgres(dim_tiempo_df, "dim_tiempo")
+    load_to_postgres(dim_cliente_df, "dim_cliente")
+    load_to_postgres(dim_bodega_df, "dim_bodega")
+    load_to_postgres(dim_producto_df, "dim_producto")
 
-    # -------- TRANSFORM & LOAD - HECHOS --------
+    # -------- TRANSFORM - Hechos --------
     fact_ventas = build_fact_ventas(
-        fact_base_df=fact_base_df,
-        dim_tiempo=dim_tiempo,
-        dim_cliente=dim_cliente,
-        dim_bodega=dim_bodega,
-        dim_producto=dim_producto,
+        fact_ventas_base_df=fact_ventas_base_df,
+        dim_tiempo_df=dim_tiempo_df,
+        dim_cliente_df=dim_cliente_df,
+        dim_bodega_df=dim_bodega_df,
+        dim_producto_df=dim_producto_df,
     )
 
-    engine = get_postgres_engine()
-    fact_ventas.to_sql("fact_ventas", engine, if_exists="replace", index=False)
-    print(f"Cargados {len(fact_ventas)} registros en fact_ventas")
+    # -------- LOAD - Hechos --------
+    load_to_postgres(fact_ventas, "fact_ventas")
+
     print("ETL finalizado con éxito.")
 
 

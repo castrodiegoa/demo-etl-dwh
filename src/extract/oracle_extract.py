@@ -48,24 +48,20 @@ def extract_fact_ventas_base():
         AND D.TKT_NMRO = E.TKT_NMRO
     WHERE (UPPER(TKT_OBSE) = 'OK' OR TKT_OBSE IS NULL)
     """
-    df = pd.read_sql(query, con=engine)
-    return df
+    fact_ventas_base_df = pd.read_sql(query, con=engine)
+    return fact_ventas_base_df
 
 
 def extract_art_vent():
     engine = get_oracle_engine()
     query = """
     SELECT 
-        V.ART_CODI        AS codigo_producto,
-        V.ART_DESC        AS descripcion_producto,
-        A.ART_REFE        AS referencia_producto,
-        A.VAL_CURV        AS valor_curva
-    FROM DEMO_DWH.ART_VENT V
-    LEFT JOIN DEMO_DWH.MAE_ARTI A
-        ON V.ART_CODI = A.ART_CODI
+        ART_CODI      AS codigo_producto,
+        ART_DESC      AS descripcion_producto
+    FROM DEMO_DWH.ART_VENT
     """
-    df = pd.read_sql(query, con=engine)
-    return df
+    art_vent_df = pd.read_sql(query, con=engine)
+    return art_vent_df
 
 
 def extract_pos_clte():
@@ -78,8 +74,8 @@ def extract_pos_clte():
         SEX_CLTE        AS sexo_cliente
     FROM DEMO_DWH.POS_CLTE
     """
-    df = pd.read_sql(query, con=engine)
-    return df
+    pos_clte_df = pd.read_sql(query, con=engine)
+    return pos_clte_df
 
 
 def extract_mae_bode():
@@ -91,5 +87,5 @@ def extract_mae_bode():
         DIR_BODE        AS direccion_bodega
     FROM DEMO_DWH.MAE_BODE
     """
-    df = pd.read_sql(query, con=engine)
-    return df
+    mae_bode_df = pd.read_sql(query, con=engine)
+    return mae_bode_df
